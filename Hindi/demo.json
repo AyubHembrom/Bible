@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "name": "Indian Revised Version",
+    "shortname": "IRV",
+    "module": "irv",
+    "year": "2017 / 2018",
+    "publisher": "Bridge Connectivity Solutions",
+    "owner": "Bridge Connectivity Solutions",
+    "description": "\u003Ch1\u003Eपवित्र बाइबिल\u003C/h1\u003E\n\n\u003Ch2\u003EThe Indian Revised Version Holy Bible in the Hindi language of India\u003C/h2\u003E\n\n\u003Cp\u003Ecopyright &copy; 2017, 2018 \u003Ca href=\"http://bridgeconn.com/\"\u003EBridge Connectivity Solutions\u003C/a\u003E\u003Cbr /\u003E\nLanguage: \u003Ca class=\"akshar_unicode\" href=\"http://www.ethnologue.org/language/hin\" target=\"_blank\"\u003Eहिन्दी भाषा (Hindi)\u003C/a\u003E\u003Cbr /\u003E\nTranslation by: Bridge Connectivity Solutions\u003Cbr /\u003E\n&nbsp;\u003C/p\u003E\n\n\u003Cp\u003EStatus of the project:\u003C/p\u003E\n\n\u003Cul\u003E\n\t\u003Cli\u003EStage 1 - Initial Drafting by Mother Tongue Translators -- Completed\u003C/li\u003E\n\t\u003Cli\u003EStage 2 - Community Checking by Church -- Completed\u003C/li\u003E\n\t\u003Cli\u003EStage 3 - Local Consultant (Theologian/Linguist) Checking -- Completed\u003C/li\u003E\n\t\u003Cli\u003EStage 4 - Church Network Leaders Checking -- Completed\u003C/li\u003E\n\t\u003Cli\u003EStage 5 - Further Quality Checking -- In Progress\u003C/li\u003E\n\u003C/ul\u003E\n\n\u003Cp\u003E&nbsp;\u003C/p\u003E\n\n\u003Cp\u003EThis translation is made available to you under the terms of the \u003Ca href=\"http://creativecommons.org/licenses/by-sa/4.0/\"\u003ECreative Commons Attribution Share-Alike license 4.0.\u003C/a\u003E\u003C/p\u003E\n\n\u003Cp\u003EYou have permission to share and redistribute this Bible translation in any format and to make reasonable revisions and adaptations of this translation, provided that:\u003C/p\u003E\n\n\u003Cul\u003E\n\t\u003Cli\u003EYou include the above copyright and source information.\u003C/li\u003E\n\t\u003Cli\u003EIf you make any changes to the text, you must indicate that you did so in a way that makes it clear that the original licensor is not necessarily endorsing your changes.\u003C/li\u003E\n\t\u003Cli\u003EIf you redistribute this text, you must distribute your contributions under the same license as the original.\u003C/li\u003E\n\u003C/ul\u003E\n\n\u003Cp\u003EPictures included with Scriptures and other documents on this site are licensed just for use with those Scriptures and documents. For other uses, please contact the respective copyright owners.\u003C/p\u003E\n\n\u003Cp\u003ENote that in addition to the rules above, revising and adapting God&#39;s Word involves a great responsibility to be true to God&#39;s Word. See Revelation 22:18-19.\u003C/p\u003E\n\n\u003Cp\u003E\u003Cbr /\u003E\n2020-04-22\u003C/p\u003E\n\n\u003Cdiv class=\"fine\"\u003EHTML generated with \u003Ca href=\"http://haiola.org\"\u003EHaiola\u003C/a\u003E by \u003Ca href=\"http://eBible.org\"\u003EeBible.org\u003C/a\u003E 22 Apr 2020 from source files dated 22 Nov 2019\u003C/div\u003E\n",
+    "lang": "Hindi",
+    "lang_short": "hi",
+    "copyright": 0,
+    "copyright_statement": "Copyright © 2017 / 2018 Bridge Connectivity Solutions\n\nThis Bible is made available under the terms of the Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) license.  This work has been reformated to work with Bible SuperSearch  However, no changes to the text or punctuation have been made.",
+    "url": null,
+    "citation_limit": 0,
+    "restrict": 0,
+    "italics": 0,
+    "strongs": 0,
+    "red_letter": 0,
+    "paragraph": 0,
+    "official": 1,
+    "research": 1,
+    "module_version": "5.6.1"
+  },
+  "verses": [
+    {
+      "book_name": "उत्पत्ति",
+      "book": 1,
+      "chapter": 1,
+      "verse": 1,
+      "text": "¶ आदि में परमेश्वर ने आकाश और पृथ्वी की सृष्टि की।"
+    },
+    {
+      "book_name": "उत्पत्ति",
+      "book": 1,
+      "chapter": 1,
+      "verse": 2,
+      "text": "पृथ्वी बेडौल और सुनसान पड़ी थी, और गहरे जल के ऊपर अंधियारा था; तथा परमेश्वर का आत्मा जल के ऊपर मण्डराता था।"
+    },
+    {
+      "book_name": "उत्पत्ति",
+      "book": 1,
+      "chapter": 1,
+      "verse": 3,
+      "text": "¶ तब परमेश्वर ने कहा, “उजियाला हो,” तो उजियाला हो गया।"
+    },
+    {
+      "book_name": "उत्पत्ति",
+      "book": 1,
+      "chapter": 1,
+      "verse": 4,
+      "text": "और परमेश्वर ने उजियाले को देखा कि अच्छा है; और परमेश्वर ने उजियाले को अंधियारे से अलग किया।"
+    },{
+      "book_name": "निर्गमन",
+      "book": 2,
+      "chapter": 1,
+      "verse": 1,
+      "text": "¶ इस्राएल के पुत्रों के नाम, जो अपने-अपने घराने को लेकर याकूब के साथ मिस्र देश में आए, ये हैं:"
+    },
+    {
+      "book_name": "निर्गमन",
+      "book": 2,
+      "chapter": 1,
+      "verse": 2,
+      "text": "रूबेन, शिमोन, लेवी, यहूदा,"
+    }, {
+      "book_name": "प्रकाशित वाक्य",
+      "book": 66,
+      "chapter": 22,
+      "verse": 21,
+      "text": "¶ प्रभु यीशु का अनुग्रह पवित्र लोगों के साथ रहे। आमीन।"
+    }
+  ]
+}

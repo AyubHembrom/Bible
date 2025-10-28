@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>बाइबिल — मोबाइल व्यू</title>
+  <style>
+    :root{--accent:#0b63d6;--bg:#fff;--muted:#666}
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Noto Sans Devanagari",Segoe UI,Roboto,Arial;}
+    body{background:linear-gradient(180deg,#f6f8fb,white);display:flex;flex-direction:column;}
+    header{background:var(--accent);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:12px}
+    header h1{font-size:16px;margin:0}
+    .container{display:flex;flex:1;overflow:hidden}
+    /* left pane: books */
+    .sidebar{width:40%;min-width:220px;max-width:420px;background:#fff;border-right:1px solid #eee;overflow:auto}
+    .main{flex:1;display:flex;flex-direction:column;overflow:auto}
+    .controls{padding:10px;border-bottom:1px solid #eee;background:#fafafa;display:flex;gap:8px;align-items:center}
+    .btn{background:#fff;border:1px solid #ddd;padding:8px 10px;border-radius:8px;cursor:pointer}
+    .btn.active{background:var(--accent);color:#fff;border-color:transparent}
+    .file-controls{display:flex;gap:8px;align-items:center}
+    .books-list{padding:8px}
+    .book-item{padding:10px;border-radius:8px;margin:6px 0;cursor:pointer}
+    .book-item:hover{background:#f0f6ff}
+    .book-item.selected{background:var(--accent);color:#fff}
+    .chapter-list{display:flex;flex-wrap:wrap;gap:6px;padding:8px}
+    .chapter-pill{padding:6px 8px;border-radius:18px;border:1px solid #ddd;cursor:pointer}
+    .chapter-pill.selected{background:#0b63d6;color:#fff;border-color:transparent}
+    .verses{padding:12px;overflow:auto}
+    .verse{padding:8px 4px;border-bottom:1px dashed #eee}
+    .verse .num{font-weight:700;margin-right:8px;color:var(--muted)}
+    .search-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .search-row input[type=text]{flex:1;padding:8px;border-radius:8px;border:1px solid #ddd}
+    .highlight{background:yellow}
+    footer{padding:8px;text-align:center;font-size:12px;color:var(--muted)}
+    /* mobile adjustments */
+    @media (max-width:700px){
+      .sidebar{width:100%;max-width:none;min-width:0;height:45%;border-right:0;border-bottom:1px solid #eee}
+      .container{flex-direction:column}
+      .main{height:55%}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="toggleSidebar" class="btn">☰</button>
+    <h1>बाइबिल (मोबाइल व्यू)</h1>
+    <div style="margin-left:auto;font-size:13px;opacity:.9">IRV — Hindi</div>
+  </header>
+
+  <div class="controls">
+    <div class="file-controls">
+      <label class="btn" title="Upload JSON file">
+        फ़ाइल अपलोड<input id="fileInput" type="file" accept="application/json" style="display:none" />
+      </label>
+      <label class="btn" title="Paste JSON text">
+        पेस्ट JSON<input id="pasteBtn" type="button" value="" style="display:none" />
+      </label>
+      <input id="urlInput" type="text" placeholder="अगर JSON किसी URL पर है तो URL पेस्ट करें (वैकल्पिक)" style="flex:1;padding:8px;border-radius:8px;border:1px solid #ddd" />
+      <button id="loadUrl" class="btn">लोड करें</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <aside class="sidebar" id="sidebar">
+      <div style="padding:10px;border-bottom:1px solid #eee;display:flex;gap:8px;align-items:center">
+        <button id="showOT" class="btn active">पुराना नियम</button>
+        <button id="showNT" class="btn">नया नियम</button>
+      </div>
+      <div class="books-list" id="booksList">कृपया JSON अपलोड/लोड करें...</div>
+    </aside>
+
+    <main class="main">
+      <div style="padding:10px;border-bottom:1px solid #eee;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="font-weight:700"> <span id="curBookName">—</span> </div>
+          <div style="color:var(--muted);font-size:13px">अध्याय: <span id="curChapterNum">—</span></div>
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <button id="prevChapter" class="btn">◀</button>
+            <button id="nextChapter" class="btn">▶</button>
+            <select id="verseFontSize" class="btn">
+              <option value="14">छोटा</option>
+              <option value="16" selected>मध्यम</option>
+              <option value="18">बड़ा</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="search-row">
+          <input id="verseSearchText" type="text" placeholder="इस अध्याय में शब्द खोजें — उदा. परमेश्वर या पूरे श्लोक का नंबर डालें" />
+          <button id="searchBtn" class="btn">खोजें</button>
+          <button id="clearSearch" class="btn">साफ़ करें</button>
+        </div>
+      </div>
+
+      <div class="chapter-list" id="chapterList"></div>
+      <div class="verses" id="verses"></div>
+    </main>
+  </div>
+
+  <footer>JSON ढांचे के आधार पर पृष्ठ स्वचालित रूप से निर्मित। (मान्य: फ़ील्ड: book_name, book, chapter, verse, text)</footer>
+
+  <script>
+    // Mobile Bible viewer — works with the JSON structure provided by the user.
+    let rawData = null; // original array of verses
+    let index = {}; // bookNum -> {name, chapters: {chapNum: [verses]}}
+    let bookOrder = []; // sorted by book number
+    let current = {book:null, chapter:null};
+
+    const fileInput = document.getElementById('fileInput');
+    const urlInput = document.getElementById('urlInput');
+    const loadUrl = document.getElementById('loadUrl');
+    const booksList = document.getElementById('booksList');
+    const chapterList = document.getElementById('chapterList');
+    const versesEl = document.getElementById('verses');
+    const curBookName = document.getElementById('curBookName');
+    const curChapterNum = document.getElementById('curChapterNum');
+    const verseSearchText = document.getElementById('verseSearchText');
+    const searchBtn = document.getElementById('searchBtn');
+    const clearSearch = document.getElementById('clearSearch');
+    const prevChapter = document.getElementById('prevChapter');
+    const nextChapter = document.getElementById('nextChapter');
+    const verseFontSize = document.getElementById('verseFontSize');
+    const showOT = document.getElementById('showOT');
+    const showNT = document.getElementById('showNT');
+    const toggleSidebar = document.getElementById('toggleSidebar');
+
+    // Helpers
+    function showMessage(msg){booksList.innerHTML = '<div style="padding:12px;color:'+getComputedStyle(document.documentElement).getPropertyValue('--muted')+'">'+msg+'</div>'}
+
+    function reset(){rawData=null;index={};bookOrder=[];current={book:null,chapter:null};booksList.innerHTML='';chapterList.innerHTML='';versesEl.innerHTML='';curBookName.textContent='—';curChapterNum.textContent='—';}
+
+    fileInput.addEventListener('change',e=>{
+      const f = e.target.files[0];
+      if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        try{ const parsed = JSON.parse(ev.target.result); handleJson(parsed); }
+        catch(err){ alert('JSON पढ़ने में त्रुटि: '+err); }
+      }
+      reader.readAsText(f,'utf-8');
+    });
+
+    loadUrl.addEventListener('click',()=>{
+      const url = urlInput.value.trim();
+      if(!url) return alert('कृपया URL डालें');
+      fetch(url).then(r=>{
+        if(!r.ok) throw new Error('नेटवर्क त्रुटि '+r.status);
+        return r.json();
+      }).then(j=>handleJson(j)).catch(err=>alert('लोड करने में त्रुटि: '+err));
+    });
+
+    // Build index from verses array
+    function buildIndex(versesArray){
+      index = {}; bookOrder = [];
+      for(const v of versesArray){
+        const bnum = Number(v.book || v.book_id || v.booknum || v.bookNumber || v.Book || 0);
+        const chapter = Number(v.chapter);
+        const verse = Number(v.verse);
+        const name = v.book_name || v.bookName || v.bookname || 'Book '+bnum;
+        if(!index[bnum]){ index[bnum] = {name:name, chapters:{}}; bookOrder.push(bnum); }
+        if(!index[bnum].chapters[chapter]) index[bnum].chapters[chapter] = [];
+        index[bnum].chapters[chapter].push({verse:verse, text:v.text});
+      }
+      // sort
+      bookOrder = bookOrder.sort((a,b)=>a-b);
+      for(const b of bookOrder){
+        const ch = index[b].chapters;
+        for(const k of Object.keys(ch)) ch[k].sort((x,y)=>x.verse - y.verse);
+      }
+    }
+
+    function handleJson(j){
+      reset();
+      // try to detect verses array
+      let versesArray = null;
+      if(Array.isArray(j)) versesArray = j;
+      else if(Array.isArray(j.verses)) versesArray = j.verses;
+      else if(Array.isArray(j.data)) versesArray = j.data;
+      if(!versesArray){ alert('JSON में "verses" जैसी array नहीं मिली — सुनिश्चित करें कि आपके पास वही ढांचा है।'); return; }
+      rawData = versesArray;
+      buildIndex(versesArray);
+      renderBooks();
+      // auto-open first book/chapter
+      if(bookOrder.length>0){
+        const firstBook = bookOrder[0];
+        const firstChapter = Number(Object.keys(index[firstBook].chapters)[0]);
+        openBook(firstBook);
+        openChapter(firstBook, firstChapter);
+      }
+    }
+
+    function renderBooks(){
+      // Decide which book numbers are OT/NT. Commonly OT=1..39, NT=40..66 for Protestant canon with 66 books.
+      const otCut = 39;
+      const ot = bookOrder.filter(b=>b<=otCut);
+      const nt = bookOrder.filter(b=>b>otCut);
+      const showWhich = showOT.classList.contains('active') ? ot : nt;
+      booksList.innerHTML = '';
+      const heading = document.createElement('div');
+      heading.style.fontWeight='700'; heading.style.marginBottom='6px';
+      heading.textContent = showOT.classList.contains('active') ? 'पुराना नियम ('+ot.length+')' : 'नया नियम ('+nt.length+')';
+      booksList.appendChild(heading);
+      for(const b of showWhich){
+        const div = document.createElement('div');
+        div.className='book-item';
+        div.dataset.book = b;
+        div.textContent = index[b].name + ' (' + Object.keys(index[b].chapters).length + ' अध्याय)';
+        div.addEventListener('click',()=>{ openBook(b); });
+        booksList.appendChild(div);
+      }
+    }
+
+    showOT.addEventListener('click',()=>{ showOT.classList.add('active'); showNT.classList.remove('active'); renderBooks(); });
+    showNT.addEventListener('click',()=>{ showNT.classList.add('active'); showOT.classList.remove('active'); renderBooks(); });
+
+    function openBook(bookNum){
+      current.book = bookNum;
+      current.chapter = null;
+      // highlight selected book
+      Array.from(document.querySelectorAll('.book-item')).forEach(el=>el.classList.toggle('selected', Number(el.dataset.book)===bookNum));
+      renderChapters(bookNum);
+      curBookName.textContent = index[bookNum].name;
+      curChapterNum.textContent = '—';
+      // remember
+      try{ localStorage.setItem('bible_last', JSON.stringify({book:bookNum})); }catch(e){}
+    }
+
+    function renderChapters(bookNum){
+      chapterList.innerHTML='';
+      const chapters = Object.keys(index[bookNum].chapters).map(n=>Number(n)).sort((a,b)=>a-b);
+      for(const c of chapters){
+        const btn = document.createElement('button');
+        btn.className='chapter-pill'; btn.textContent=c; btn.dataset.ch = c;
+        btn.addEventListener('click',()=>openChapter(bookNum,c));
+        chapterList.appendChild(btn);
+      }
+    }
+
+    function openChapter(bookNum, chapterNum){
+      current.book = bookNum; current.chapter = chapterNum;
+      // highlight chapter
+      Array.from(document.querySelectorAll('.chapter-pill')).forEach(el=>el.classList.toggle('selected', Number(el.dataset.ch)===Number(chapterNum)));
+      curBookName.textContent = index[bookNum].name;
+      curChapterNum.textContent = chapterNum;
+      renderVerses(bookNum, chapterNum);
+      try{ localStorage.setItem('bible_last', JSON.stringify({book:bookNum,chapter:chapterNum})); }catch(e){}
+    }
+
+    function renderVerses(bookNum, chapterNum){
+      versesEl.innerHTML='';
+      const arr = index[bookNum].chapters[chapterNum] || [];
+      for(const v of arr){
+        const d = document.createElement('div'); d.className='verse'; d.dataset.verse = v.verse;
+        const num = document.createElement('span'); num.className='num'; num.textContent = v.verse;
+        const txt = document.createElement('span'); txt.className='txt'; txt.innerHTML = v.text;
+        d.appendChild(num); d.appendChild(txt);
+        versesEl.appendChild(d);
+      }
+      applyFontSize();
+      // scroll to top
+      versesEl.scrollTop = 0;
+    }
+
+    function applyFontSize(){
+      const size = Number(verseFontSize.value);
+      versesEl.querySelectorAll('.verse .txt').forEach(el=>el.style.fontSize = size+'px');
+    }
+    verseFontSize.addEventListener('change',applyFontSize);
+
+    searchBtn.addEventListener('click',()=>{
+      const q = verseSearchText.value.trim();
+      if(!current.book || !current.chapter) return alert('कृपया पहले एक अध्याय खोलें');
+      // if q is a number -> jump to that verse
+      if(/^\d+$/.test(q)){
+        const vnum = Number(q);
+        const target = versesEl.querySelector('.verse[data-verse="'+vnum+'"]');
+        if(target){
+          // clear existing highlights
+          clearHighlights();
+          target.scrollIntoView({behavior:'smooth',block:'center'});
+          target.classList.add('highlight');
+          setTimeout(()=>target.classList.remove('highlight'),2000);
+        } else alert('उस श्लोक संख्या का वचन इस अध्याय में नहीं मिला।');
+        return;
+      }
+      // text search: highlight all matching verses (case-insensitive)
+      clearHighlights();
+      if(q===''){ alert('खोज शब्द डालें'); return; }
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
+      let found=0;
+      versesEl.querySelectorAll('.verse').forEach(div=>{
+        const txt = div.querySelector('.txt');
+        if(re.test(txt.textContent)){
+          found++; // wrap matches
+          txt.innerHTML = txt.textContent.replace(re,match=>' <mark class="highlight">'+match+'</mark> ');
+        }
+      });
+      if(found===0) alert('कोई परिणाम नहीं मिला');
+    });
+
+    clearSearch.addEventListener('click',()=>{ verseSearchText.value=''; clearHighlights(); });
+    function clearHighlights(){
+      versesEl.querySelectorAll('.verse .txt').forEach(el=>{ el.innerHTML = el.textContent; });
+      versesEl.querySelectorAll('.verse').forEach(el=>el.classList.remove('highlight'));
+    }
+
+    prevChapter.addEventListener('click',()=>{
+      if(!current.book || !current.chapter) return;
+      const chapters = Object.keys(index[current.book].chapters).map(n=>Number(n)).sort((a,b)=>a-b);
+      const i = chapters.indexOf(Number(current.chapter));
+      if(i>0) openChapter(current.book, chapters[i-1]);
+    });
+    nextChapter.addEventListener('click',()=>{
+      if(!current.book || !current.chapter) return;
+      const chapters = Object.keys(index[current.book].chapters).map(n=>Number(n)).sort((a,b)=>a-b);
+      const i = chapters.indexOf(Number(current.chapter));
+      if(i<chapters.length-1) openChapter(current.book, chapters[i+1]);
+    });
+
+    // sidebar toggle for mobile
+    toggleSidebar.addEventListener('click',()=>{
+      document.getElementById('sidebar').classList.toggle('hidden');
+    });
+
+    // try restore last
+    window.addEventListener('load',()=>{
+      try{
+        const last = JSON.parse(localStorage.getItem('bible_last')||'{}');
+        if(last && last.book && index && index[last.book]){
+          openBook(last.book);
+          if(last.chapter) openChapter(last.book,last.chapter);
+        }
+      }catch(e){}
+    });
+
+    // Small note: If user's JSON uses different field names, you can adapt 'buildIndex' to map them.
+
+  </script>
+</body>
+</html>
