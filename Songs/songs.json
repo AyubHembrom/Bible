@@ -1,0 +1,26 @@
+[
+  {
+    "s_no": 1,
+    "song_name": "Amazing Grace",
+    "language": "English",
+    "song": "<div style='font-family: Arial, sans-serif; font-size:16px; color:#222222; line-height:1.6; padding:14px; border-radius:8px; background:#ffffff; box-shadow:0 1px 3px rgba(0,0,0,0.06);'><h3 style='margin:0 0 8px 0; font-size:18px;'>Amazing Grace</h3><p style='margin:0;'>Amazing grace! How sweet the sound<br>That saved a wretch like me!<br>I once was lost, but now am found;<br>Was blind, but now I see.</p></div>"
+  },
+  {
+    "s_no": 2,
+    "song_name": "Yeshu Mera Sahara",
+    "language": "Hindi",
+    "song": "<div style='font-family: Mangal, Arial, sans-serif; font-size:18px; color:#1b1b1b; line-height:1.8; padding:14px; border-radius:8px; background:#fffaf0;'><h3 style='margin:0 0 8px 0; font-size:20px;'>यीशु मेरा सहारा</h3><p style='margin:0;'>यीशु मेरा सहारा है<br>वह मेरा रखवाला है<br>मैं क्यों डरूँ संसार से<br>वह मेरे संग सदा है।</p></div>"
+  },
+  {
+    "s_no": 3,
+    "song_name": "Praise the Lord",
+    "language": "English",
+    "song": "<div style='font-family: Arial, sans-serif; font-size:16px; color:#0f1724; line-height:1.6; padding:14px; border-left:4px solid #2b6cb0; background:#f8fafc;'><h3 style='margin:0 0 8px 0; font-size:18px;'>Praise the Lord</h3><p style='margin:0;'>Praise the Lord, praise the Lord<br>Let the earth hear His voice<br>Praise the Lord, praise the Lord<br>Let the people rejoice.</p></div>"
+  },
+  {
+    "s_no": 4,
+    "song_name": "Prabhu Tera Dhanyavaad",
+    "language": "Hindi",
+    "song": "<div style='font-family: Mangal, Arial, sans-serif; font-size:18px; color:#111827; line-height:1.8; padding:14px; border-radius:6px; background:#fff7ed;'><h3 style='margin:0 0 8px 0; font-size:20px;'>प्रभु तेरा धन्यवाद</h3><p style='margin:0;'>प्रभु तेरा धन्यवाद करूँ<br>तेरी स्तुति सदा मैं गाऊँ<br>तू ही मेरा जीवन है<br>तेरे संग मैं रहूँ।</p></div>"
+  }
+]
