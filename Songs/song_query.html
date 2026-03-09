@@ -1,38 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Song Query -> JSON</title>
-  <meta name="robots" content="noindex">
-  <style>
-    /* Minimal help UI only shown when no query provided.
-       When a query is present the page will redirect to a
-       data:application/json URL so the browser shows *only* JSON. */
-    body{font-family:Inter,system-ui,Arial;margin:18px;color:#0f1724}
-    .help{max-width:900px}
-    pre.helpbox{background:#0b1220;color:#e6eef8;padding:12px;border-radius:8px;white-space:pre-wrap}
-    a.try{display:inline-block;margin-top:8px;padding:8px 10px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none}
-  </style>
-</head>
-<body>
-  <div id="help" class="help" aria-hidden="false">
-    <h3>Song Query (client-side) — JSON output only</h3>
-    <p>Usage (paste in address bar):</p>
-    <ul>
-      <li><code>?q=3%20Praise%20the%20Lord</code></li>
-      <li><code>?q=3</code></li>
-      <li><code>?q=Praise%20the%20Lord</code></li>
-      <li><code>?sno=1</code> or <code>?q=1%20Amazing%20Grace</code></li>
-    </ul>
-    <p>If you open the page <em>without</em> query params, this help will remain visible. If you supply <code>q</code> or <code>sno</code> the script will output <strong>only</strong> JSON (no HTML wrapper) by navigating to a <code>data:application/json</code> URL.</p>
-    <a class="try" href="?q=3%20Praise%20the%20Lord">Try example</a>
-    <pre class="helpbox">Note: For a production API that returns HTTP header
-Content-Type: application/json you should use a server-side endpoint.
-This page is a client-side helper that produces a true JSON document
-view by redirecting to a data:application/json URL.</pre>
-  </div>
-
 <script>
 /* =========================
    song_query.json.html
@@ -237,5 +202,3 @@ function outputAsPureJSON(responseObj){
 
 })();
 </script>
-</body>
-</html>
