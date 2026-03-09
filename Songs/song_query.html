@@ -3,43 +3,53 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Song Query (JSON)</title>
+  <title>Song Query -> JSON</title>
   <meta name="robots" content="noindex">
   <style>
-    /* minimal styles so if someone opens file without query it shows help */
-    body{font-family:Inter,system-ui,Arial; margin:20px; color:#0f1724}
-    pre{background:#0b1220;color:#e6eef8;padding:12px;border-radius:8px;white-space:pre-wrap}
+    /* Minimal help UI only shown when no query provided.
+       When a query is present the page will redirect to a
+       data:application/json URL so the browser shows *only* JSON. */
+    body{font-family:Inter,system-ui,Arial;margin:18px;color:#0f1724}
     .help{max-width:900px}
-    a.ch{display:inline-block;margin-top:8px;padding:8px 10px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none}
+    pre.helpbox{background:#0b1220;color:#e6eef8;padding:12px;border-radius:8px;white-space:pre-wrap}
+    a.try{display:inline-block;margin-top:8px;padding:8px 10px;background:#2563eb;color:#fff;border-radius:8px;text-decoration:none}
   </style>
 </head>
 <body>
-  <div id="app">
-    <div class="help">
-      <h3>Song Query (client-side)</h3>
-      <p>Usage examples (paste in address bar):</p>
-      <ul>
-        <li><code>?q=3%20Praise%20the%20Lord</code></li>
-        <li><code>?q=3</code></li>
-        <li><code>?q=Praise%20the%20Lord</code></li>
-        <li><code>?sno=1</code> or <code>?q=1%20Amazing%20Grace</code></li>
-      </ul>
-      <p>If you open without query the page shows this help — but when a query is present the page will replace content with JSON only.</p>
-      <a class="ch" href="?q=3%20Praise%20the%20Lord">Try example</a>
-    </div>
+  <div id="help" class="help" aria-hidden="false">
+    <h3>Song Query (client-side) — JSON output only</h3>
+    <p>Usage (paste in address bar):</p>
+    <ul>
+      <li><code>?q=3%20Praise%20the%20Lord</code></li>
+      <li><code>?q=3</code></li>
+      <li><code>?q=Praise%20the%20Lord</code></li>
+      <li><code>?sno=1</code> or <code>?q=1%20Amazing%20Grace</code></li>
+    </ul>
+    <p>If you open the page <em>without</em> query params, this help will remain visible. If you supply <code>q</code> or <code>sno</code> the script will output <strong>only</strong> JSON (no HTML wrapper) by navigating to a <code>data:application/json</code> URL.</p>
+    <a class="try" href="?q=3%20Praise%20the%20Lord">Try example</a>
+    <pre class="helpbox">Note: For a production API that returns HTTP header
+Content-Type: application/json you should use a server-side endpoint.
+This page is a client-side helper that produces a true JSON document
+view by redirecting to a data:application/json URL.</pre>
   </div>
 
 <script>
-/*
-  song_query.html
-  - Reads ?q=... or ?sno=...
-  - Auto-parses number and text (robust)
-  - Tries exact s_no+name, then s_no, then exact name, substring, lyrics-contains
-  - Outputs only JSON (replaces page with JSON text) when a query is present
-  - If songs.json exists (served), it will fetch it; otherwise uses embedded SONGS array
-*/
+/* =========================
+   song_query.json.html
+   - Reads ?q=... or ?sno=...
+   - Robust parse: detects number anywhere and song-name text
+   - Matching order:
+       1) exact (s_no + exact normalized name)
+       2) s_no exact
+       3) exact normalized name
+       4) substring in name
+       5) substring in lyrics/content
+       6) fallback none / all
+   - On match, returns a JSON object and navigates to data:application/json,<encoded json>
+   - If navigation to data: URL fails, falls back to replacing document with plain JSON text node
+   ========================= */
 
-/* ---------- Embedded fallback SONGS (you can replace or keep) ---------- */
+/* ---------- Embedded fallback data (used if ./songs.json not served) ---------- */
 const EMBEDDED_SONGS = [
   { s_no: 1, song_name: "Amazing Grace", language: "English", song: "<div><h3>Amazing Grace</h3><p>Amazing grace! How sweet the sound<br>That saved a wretch like me!</p></div>" },
   { s_no: 2, song_name: "Yeshu Mera Sahara", language: "Hindi", song: "<div><h3>यीशु मेरा सहारा</h3><p>यीशु मेरा सहारा है<br>वह मेरा रखवाला है</p></div>" },
@@ -47,154 +57,184 @@ const EMBEDDED_SONGS = [
   { s_no: 4, song_name: "Prabhu Tera Dhanyavaad", language: "Hindi", song: "<div><h3>प्रभु तेरा धन्यवाद</h3><p>प्रभु तेरा धन्यवाद करूँ<br>तेरी स्तुति सदा मैं गाऊँ</p></div>" }
 ];
 
-/* ---------- Helpers ---------- */
+/* ---------- Utilities ---------- */
 function qsParam(name){
-  name = name.replace(/[\\[\\]]/g,'\\$&');
+  name = name.replace(/[\[\]]/g,'\\$&');
   const regex = new RegExp('[?&]'+name+'=([^&#]*)');
   const results = regex.exec(location.search);
   return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : null;
 }
 
-// normalize: remove diacritics, punctuation, collapse spaces, lowercase
+// Normalize: remove diacritics, strip tags, remove punctuation except letters/numbers, collapse spaces, lowercase
 function normalizeStr(s){
   if(!s) return '';
-  // Normalize diacritics
+  // decompose accents
   let t = String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  // remove HTML tags too
+  // remove HTML tags
   t = t.replace(/<[^>]*>/g,' ');
-  // keep letters/numbers/space (unicode letters)
+  // keep unicode letters and numbers and spaces
   t = t.replace(/[^\p{L}\p{N}\s]/gu, ' ');
-  t = t.replace(/\s+/g,' ').trim().toLowerCase();
+  t = t.replace(/\s+/g, ' ').trim().toLowerCase();
   return t;
 }
 
 function stripTags(html){
-  const tmp = document.createElement('div'); tmp.innerHTML = html || ''; return tmp.textContent || tmp.innerText || '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return tmp.textContent || tmp.innerText || '';
 }
 
-/* parse q like "3 Praise the Lord" OR "Praise the Lord" OR "3" */
+/* Parse "q" intelligently - detect a number token anywhere */
 function tryParseQuery(q){
-  if(!q) return {raw:'', number:null, text:''};
-  const raw = q.trim().replace(/\s+/g,' ');
+  if(!q) return { raw: '', number: null, text: '' };
+  const raw = q.trim().replace(/\s+/g, ' ');
   const tokens = raw.split(' ');
   let number = null;
   let textParts = [];
 
-  // If first token is integer -> treat as s_no
+  // If first token is integer, treat as s_no
   if(/^[-+]?\d+$/.test(tokens[0])){
-    number = parseInt(tokens[0],10);
+    number = parseInt(tokens[0], 10);
     textParts = tokens.slice(1);
   } else {
-    // find any token that is pure integer and remove it
+    // find any token that is integer
     const idx = tokens.findIndex(t => /^[-+]?\d+$/.test(t));
     if(idx !== -1){
-      number = parseInt(tokens[idx],10);
-      // join tokens without that number
-      textParts = tokens.slice(0,idx).concat(tokens.slice(idx+1));
+      number = parseInt(tokens[idx], 10);
+      // remove that token
+      textParts = tokens.slice(0, idx).concat(tokens.slice(idx+1));
     } else {
       textParts = tokens;
     }
   }
   const text = textParts.join(' ').trim();
-  return {raw, number: number===null ? null : number, text};
+  return { raw, number: number === null ? null : number, text };
 }
 
-/* matching logic against songs array */
+/* Matching logic */
 function findMatches(songs, parsed){
   const normText = normalizeStr(parsed.text || '');
-  // 1) if both number and text -> try exact both (normalized)
+  // 1) exact both
   if(parsed.number !== null && normText){
     const exactBoth = songs.filter(s => Number(s.s_no) === Number(parsed.number) && normalizeStr(s.song_name) === normText);
-    if(exactBoth.length) return {reason:'exact s_no + name', matches: exactBoth};
+    if(exactBoth.length) return { reason: 'exact s_no + name', matches: exactBoth };
   }
-  // 2) if number -> find by s_no
+  // 2) by s_no
   if(parsed.number !== null){
     const byNo = songs.filter(s => Number(s.s_no) === Number(parsed.number));
-    if(byNo.length) return {reason:'s_no match', matches: byNo};
+    if(byNo.length) return { reason: 's_no match', matches: byNo };
   }
-  // 3) if text -> exact name
+  // 3) exact name
   if(normText){
     const exactName = songs.filter(s => normalizeStr(s.song_name) === normText);
-    if(exactName.length) return {reason:'exact name', matches: exactName};
-    // 4) substring within song_name
+    if(exactName.length) return { reason: 'exact name', matches: exactName };
+    // 4) substring in name
     const subName = songs.filter(s => normalizeStr(s.song_name).includes(normText));
-    if(subName.length) return {reason:'name substring', matches: subName};
-    // 5) search inside lyrics/content
+    if(subName.length) return { reason: 'name substring', matches: subName };
+    // 5) inside lyrics/content
     const inside = songs.filter(s => normalizeStr(stripTags(s.song)).includes(normText));
-    if(inside.length) return {reason:'lyrics contains', matches: inside};
+    if(inside.length) return { reason: 'lyrics contains', matches: inside };
   }
-  // 6) if nothing given -> return all
+  // 6) request for all
   if(parsed.number === null && !normText){
-    return {reason:'all', matches: songs.slice()};
+    return { reason: 'all', matches: songs.slice() };
   }
-  // 7) no matches
-  return {reason:'none', matches: []};
+  // none
+  return { reason: 'none', matches: [] };
 }
 
-/* try to load songs.json first (if served from a web-server), otherwise use embedded */
+/* Try to fetch ./songs.json (when served); fallback to EMBEDDED_SONGS */
 async function loadSongsData(){
   try{
-    const res = await fetch('./songs.json', {cache:'no-store'});
+    const res = await fetch('./songs.json', { cache: 'no-store' });
     if(res.ok){
       const data = await res.json();
-      if(Array.isArray(data) && data.length) return data;
+      if(Array.isArray(data)) return data;
     }
   }catch(e){
-    // fetch failed (likely file://) — fallback to embedded
+    // ignore - fallback
   }
   return EMBEDDED_SONGS;
 }
 
-/* main runner */
-(async function main(){
-  const rawQ = qsParam('q') || qsParam('query') || qsParam('search') || null;
-  const snoParam = qsParam('sno') || qsParam('id') || null;
-
-  // if no query present -> leave help visible (do not replace with JSON)
-  if(!rawQ && !snoParam){
-    // keep help visible and exit
-    return;
-  }
-
-  // get songs (try fetch, else embedded)
-  const songs = await loadSongsData();
-
-  // form combined input string: prefer snoParam if present, else rawQ
-  let combined = rawQ || '';
-  if(snoParam && !rawQ){
-    combined = String(snoParam);
-  } else if(snoParam && rawQ){
-    // if both present, put both: sno + rawQ (so parser can pick number)
-    combined = snoParam + ' ' + rawQ;
-  }
-
-  const parsed = tryParseQuery(combined);
-  const found = findMatches(songs, parsed);
-
-  const response = {
+/* Create response object */
+function buildResponse(parsed, found){
+  return {
     request: {
-      original_querystring: location.search,
-      used_query: combined,
+      original_querystring: location.search || '',
+      used_query: parsed.raw,
       parsed: parsed
     },
     reason: found.reason,
     matches: found.matches
   };
+}
 
-  // replace page content with JSON only (pretty)
-  const jsonText = JSON.stringify(response, null, 2);
-  // set page title
-  document.title = 'JSON result';
-  // Replace body completely with plain PRE (so only JSON visible)
-  document.body.innerHTML = '';
-  const pre = document.createElement('pre');
-  pre.style.whiteSpace = 'pre-wrap';
-  pre.textContent = jsonText;
-  document.body.appendChild(pre);
+/* Convert to data:application/json URL and navigate there.
+   If data URL navigation is blocked or impractical (very long),
+   fallback to replacing document content with raw JSON text node. */
+function outputAsPureJSON(responseObj){
+  const jsonText = JSON.stringify(responseObj, null, 2);
+  try {
+    // Try to navigate to a data URL with proper MIME type so browser shows only JSON
+    // Encode using encodeURIComponent to be safe.
+    const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(jsonText);
+    // Use location.replace to avoid creating a back history entry
+    window.location.replace(dataUrl);
+    // In most browsers this will show the raw JSON with MIME application/json.
+    // If browser blocks data: navigation, the following code will run (after try) but navigation usually ends the script.
+    // We'll still provide fallback below after a short timeout.
+    setTimeout(()=> {
+      // If still on the same page after a brief delay, fallback:
+      if (document && document.body) {
+        document.body.innerHTML = '';
+        const textNode = document.createTextNode(jsonText);
+        document.body.appendChild(textNode);
+      }
+    }, 250);
+  } catch (err) {
+    // Fallback: wipe document and write JSON text (not ideal MIME but visible)
+    try {
+      document.documentElement.innerHTML = '';
+      const txt = document.createTextNode(jsonText);
+      document.appendChild(txt);
+    } catch (e) {
+      // Last resort
+      document.body.innerText = jsonText;
+    }
+  }
+}
 
-  // (Optional) If you want the raw MIME type application/json for some clients,
-  // you cannot change server headers from client-side. If you need true API
-  // behavior use a server-side endpoint that returns Content-Type: application/json.
+/* Main */
+(async function(){
+  // Check query params
+  const rawQ = qsParam('q') || qsParam('query') || qsParam('search') || null;
+  const snoParam = qsParam('sno') || qsParam('id') || null;
+
+  // If no query at all, keep help as-is and exit
+  if(!rawQ && !snoParam){
+    return;
+  }
+
+  // Load songs
+  const songs = await loadSongsData();
+
+  // Build combined input (prefer sno if provided)
+  let combined = rawQ || '';
+  if(snoParam && !rawQ){
+    combined = String(snoParam);
+  } else if(snoParam && rawQ){
+    combined = snoParam + ' ' + rawQ;
+  }
+
+  // Parse and find matches
+  const parsed = tryParseQuery(combined);
+  const found = findMatches(songs, parsed);
+  const response = buildResponse(parsed, found);
+
+  // Output pure JSON (data:application/json) so browser shows only JSON content
+  outputAsPureJSON(response);
+
 })();
 </script>
 </body>
