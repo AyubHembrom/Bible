@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Song Query — JSON API (client-side)</title>
+  <meta name="color-scheme" content="light dark">
+  <style>
+    :root{--accent:#2563eb;--bg:#f7fafc;--card:#fff;--muted:#6b7280;--radius:12px;font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:var(--bg);color:#0f1724}
+    .wrap{max-width:900px;margin:14px auto;padding:14px}
+    .card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.04)}
+    h1{font-size:18px;margin:0 0 8px 0}
+    p.small{color:var(--muted);margin:6px 0 12px 0}
+    form{display:flex;gap:8px;flex-wrap:wrap}
+    input[type="text"]{flex:1;padding:10px;border-radius:10px;border:1px solid #e6e9ef}
+    button{padding:10px 12px;border-radius:10px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+    .result{margin-top:12px}
+    pre.jsonbox{background:#0b1220;color:#e6eef8;padding:12px;border-radius:8px;overflow:auto;max-height:60vh;font-family:Menlo,Monaco,monospace;font-size:13px}
+    .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+    .chip{background:#eef2ff;color:var(--accent);padding:6px 8px;border-radius:999px;font-size:13px}
+    .download{background:#10b981}
+    @media (max-width:600px){.wrap{padding:10px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Song Query — JSON (client-only)</h1>
+      <p class="small">GET-style example: <code>?q=3%20Praise%20the%20Lord</code>  — या  <code>?sno=3</code>  या  <code>?q=Praise%20the%20Lord</code></p>
+
+      <form id="qform" onsubmit="return false;">
+        <input id="qinput" type="text" placeholder="Type number + name (e.g. 3 Praise the Lord) or only number or only name" />
+        <button id="go">Search</button>
+        <button id="showAll" type="button" style="background:#374151">Show all</button>
+      </form>
+
+      <div class="meta" id="metaArea" style="display:none">
+        <div class="chip" id="parsed">Parsed: —</div>
+        <div class="chip" id="foundCount">Matches: —</div>
+        <button id="downloadBtn" class="chip download" style="display:none">Download JSON</button>
+      </div>
+
+      <div class="result" id="resultArea">
+        <div style="padding:12px;color:var(--muted)">Result JSON will appear here when you query the page with <code>?q=...</code> or use the form above.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ---------------- SONGS DATA (embedded) ----------------
+   You can extend this array or replace it with a fetch from songs.json.
+-------------------------------------------------------- */
+const SONGS = [
+  {
+    s_no: 1,
+    song_name: "Amazing Grace",
+    language: "English",
+    song: "<div style='font-family: Arial, sans-serif; font-size:16px; color:#222222; line-height:1.6; padding:14px; border-radius:8px; background:#ffffff;'><h3>Amazing Grace</h3><p>Amazing grace! How sweet the sound<br>That saved a wretch like me!</p></div>"
+  },
+  {
+    s_no: 2,
+    song_name: "Yeshu Mera Sahara",
+    language: "Hindi",
+    song: "<div style='font-family: Mangal, Arial, sans-serif; font-size:18px;'><h3>यीशु मेरा सहारा</h3><p>यीशु मेरा सहारा है<br>वह मेरा रखवाला है</p></div>"
+  },
+  {
+    s_no: 3,
+    song_name: "Praise the Lord",
+    language: "English",
+    song: "<div style='font-family: Arial, sans-serif; font-size:16px;'><h3>Praise the Lord</h3><p>Praise the Lord, praise the Lord<br>Let the earth hear His voice</p></div>"
+  },
+  {
+    s_no: 4,
+    song_name: "Prabhu Tera Dhanyavaad",
+    language: "Hindi",
+    song: "<div style='font-family: Mangal, Arial, sans-serif; font-size:18px;'><h3>प्रभु तेरा धन्यवाद</h3><p>प्रभु तेरा धन्यवाद करूँ<br>तेरी स्तुति सदा मैं गाऊँ</p></div>"
+  }
+];
+
+/* ---------------- Utilities ---------------- */
+function qsParam(name){
+  name = name.replace(/[\\[\\]]/g,'\\$&');
+  const regex = new RegExp('[?&]'+name+'=([^&#]*)');
+  const results = regex.exec(location.search);
+  return results ? decodeURIComponent(results[1].replace(/\+/g,' ')) : null;
+}
+function tryParseQuery(q){
+  // trim multiple spaces -> single, split tokens
+  if(!q) return {raw:'', number:null, text:''};
+  const raw = q.trim().replace(/\\s+/g,' ');
+  const tokens = raw.split(' ');
+  // find first token that is an integer
+  let number = null;
+  let textParts = [];
+  // if first token is number, treat as s_no
+  if(/^-?\\d+$/.test(tokens[0])){
+    number = parseInt(tokens[0],10);
+    textParts = tokens.slice(1);
+  }else{
+    // else, search tokens for any number (e.g., "3 Praise the Lord" with extra spaces)
+    const idx = tokens.findIndex(t => /^-?\\d+$/.test(t));
+    if(idx !== -1){
+      number = parseInt(tokens[idx],10);
+      textParts = tokens.slice(0,idx).concat(tokens.slice(idx+1));
+    }else{
+      textParts = tokens;
+    }
+  }
+  const text = textParts.join(' ').trim();
+  return {raw, number, text};
+}
+
+function findMatches({number, text}){
+  // precise matches first if both provided
+  let matches = [];
+  if(number != null && text){
+    // try exact (both)
+    matches = SONGS.filter(s => Number(s.s_no) === Number(number) && s.song_name.toLowerCase() === text.toLowerCase());
+    if(matches.length) return {reason:'exact s_no+name', matches};
+  }
+  if(number != null){
+    const m = SONGS.filter(s => Number(s.s_no) === Number(number));
+    if(m.length) return {reason:'s_no match', matches:m};
+  }
+  if(text){
+    // try exact name (case-insensitive)
+    const exact = SONGS.filter(s => s.song_name.toLowerCase() === text.toLowerCase());
+    if(exact.length) return {reason:'exact name', matches:exact};
+    // substring search in song_name
+    const subs = SONGS.filter(s => s.song_name.toLowerCase().includes(text.toLowerCase()));
+    if(subs.length) return {reason:'name substring', matches:subs};
+    // search inside lyrics/text (strip tags)
+    const inside = SONGS.filter(s => stripTags(s.song).toLowerCase().includes(text.toLowerCase()));
+    if(inside.length) return {reason:'lyrics text match', matches:inside};
+  }
+  // if nothing matched and both absent, return all
+  if(number==null && !text) return {reason:'all', matches: SONGS.slice()};
+  // nothing found
+  return {reason:'none', matches: []};
+}
+
+function stripTags(html){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html || '';
+  return tmp.textContent || tmp.innerText || '';
+}
+
+/* ---------------- Render / API behavior ---------------- */
+const form = document.getElementById('qform');
+const qinput = document.getElementById('qinput');
+const resultArea = document.getElementById('resultArea');
+const parsedChip = document.getElementById('parsed');
+const foundChip = document.getElementById('foundCount');
+const metaArea = document.getElementById('metaArea');
+const downloadBtn = document.getElementById('downloadBtn');
+const showAllBtn = document.getElementById('showAll');
+
+function renderJSON(obj){
+  // pretty print JSON inside <pre>; also show download link button
+  resultArea.innerHTML = '<pre class="jsonbox">'+JSON.stringify(obj, null, 2)+'</pre>';
+  metaArea.style.display = 'flex';
+  foundChip.textContent = 'Matches: '+ (Array.isArray(obj.matches) ? obj.matches.length : (obj ? 1 : 0));
+  downloadBtn.style.display = 'inline-block';
+  downloadBtn.onclick = ()=>downloadJSON(obj);
+}
+
+function renderNotFound(parsed){
+  resultArea.innerHTML = '<div style="padding:12px;color:#b91c1c;background:#fff1f2;border-radius:8px">No matching song found.</div>';
+  metaArea.style.display = 'flex';
+  foundChip.textContent = 'Matches: 0';
+  downloadBtn.style.display = 'none';
+  parsedChip.textContent = 'Parsed: ' + JSON.stringify(parsed);
+}
+
+function downloadJSON(obj){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (obj.matches && obj.matches.length === 1 && obj.matches[0].song_name ? (obj.matches[0].song_name.replace(/\\s+/g,'_') + '.json') : 'songs_result.json');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* handle incoming query string on page load */
+function processQueryString(){
+  // allow either q=... or sno=...
+  const qstr = qsParam('q') || qsParam('query') || qsParam('search') || qsParam('s') || null;
+  const snoParam = qsParam('sno') || qsParam('id') || null;
+  if(snoParam && !qstr){
+    qinput.value = snoParam;
+  }else if(qstr){
+    qinput.value = qstr;
+  }
+  // if there's any query in URL, auto-run
+  if(qinput.value && qinput.value.trim() !== ''){
+    runSearch(qinput.value.trim());
+  }
+}
+
+/* main search runner (updates UI and produces JSON result object) */
+function runSearch(rawQuery){
+  const parsed = tryParseQuery(rawQuery);
+  parsedChip.textContent = 'Parsed: ' + JSON.stringify(parsed);
+  // find matches
+  const found = findMatches(parsed);
+  const responseObj = {
+    request: {raw: parsed.raw, s_no: parsed.number, song_name_text: parsed.text},
+    reason: found.reason,
+    matches: found.matches
+  };
+  if(found.matches.length === 0){
+    renderNotFound(parsed);
+  }else{
+    renderJSON(responseObj);
+  }
+  // return object for possible use
+  return responseObj;
+}
+
+/* form actions */
+document.getElementById('go').addEventListener('click', ()=> {
+  const q = qinput.value || '';
+  history.replaceState(null, '', '?q='+encodeURIComponent(q));
+  runSearch(q);
+});
+
+showAllBtn.addEventListener('click', ()=> {
+  qinput.value = '';
+  history.replaceState(null, '', location.pathname);
+  const allObj = { request: {raw:'(all)'}, reason:'all', matches: SONGS.slice() };
+  renderJSON(allObj);
+});
+
+/* process on load */
+processQueryString();
+
+</script>
+</body>
+</html>
